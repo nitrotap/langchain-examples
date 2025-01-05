@@ -131,7 +131,7 @@ You have access to the following tools:
 4. Wikipedia Tool - Retrieve information from Wikipedia.
 
 Guidelines for using tools:
-- Always consider combining multiple tools when a single tool might not provide a comprehensive answer.
+- Always consider combining multiple tools when a single tool might not provide a comprehensive answer. For example, always use the retriever tool to search for information on writing blog posts in combination with another tool.
 - If the first tool's output is incomplete or unclear, proceed to query additional tools to cross-verify or expand the information.
 - When answering complex questions, always use a combination of tools to create a well-rounded response.
 
