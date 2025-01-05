@@ -1,4 +1,26 @@
-from langchain_community.tools import DuckDuckGoSearchRun
+import subprocess
+import sys
+
+def install_packages():
+    packages = [
+        "langchain_community",
+        "langchain_openai",
+        "langchain_ollama",
+        "langchain_text_splitters",
+        "langchain_core",
+        "langgraph",
+        "beautifulsoup4",
+        "requests",
+        "wikipedia"
+    ]
+    for package in packages:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Install required packages
+install_packages()
+
+import json
+from bs4 import BeautifulSoup
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import Chroma 
 from langchain_openai import ChatOpenAI
@@ -10,6 +32,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from typing import Annotated, Sequence
+import requests
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 
@@ -94,8 +117,39 @@ from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
+def analyze_schema_markup(url: str):
+    """
+    Fetch and analyze schema markup from a given URL.
+    
+    Args:
+        url (str): The URL of the page to analyze.
+    
+    Returns:
+        dict: A dictionary containing the schema markup types and details.
+    """
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        schemas = soup.find_all(attrs={"type": "application/ld+json"})
+
+        schema_data = []
+        for schema in schemas:
+            try:
+                schema_json = json.loads(schema.string)
+                schema_data.append(schema_json)
+            except Exception as e:
+                schema_data.append({"error": str(e)})
+
+        response = model.invoke("Analyze the following schema data:" + json.dump(schema_data))
+        return response
+    except Exception as e:
+        return {"error": str(e)}
+
 # Define tools
-tools = [retriever_tool, arxiv_tool, wikipedia, bing_search]
+tools = [retriever_tool, arxiv_tool, wikipedia, bing_search, analyze_schema_markup]
+
+
 
 # Define state management
 class AgentState(TypedDict):
@@ -104,7 +158,7 @@ class AgentState(TypedDict):
 # Create the memory and model
 memory = MemorySaver()
 # model = ChatOpenAI(temperature=0, model="gpt-4-0125-preview", streaming=True)
-model = ChatOllama(temperature=0, model="llama3.3")
+model = ChatOllama(temperature=0, model="llama3.2")
 
 
 # Create the agent executor with the graph
