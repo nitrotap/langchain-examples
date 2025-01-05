@@ -1,29 +1,7 @@
-import subprocess
-import sys
-
-def install_packages():
-    packages = [
-        "langchain_community",
-        "langchain_openai",
-        "langchain_ollama",
-        "langchain_text_splitters",
-        "langchain_core",
-        "langgraph",
-        "beautifulsoup4",
-        "requests",
-        "wikipedia"
-    ]
-    for package in packages:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# Install required packages
-install_packages()
-
-import json
-from bs4 import BeautifulSoup
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import Chroma 
-from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.tools.retriever import create_retriever_tool
@@ -32,7 +10,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from typing import Annotated, Sequence
-import requests
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 
@@ -117,37 +94,8 @@ from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
-def analyze_schema_markup(url: str):
-    """
-    Fetch and analyze schema markup from a given URL.
-    
-    Args:
-        url (str): The URL of the page to analyze.
-    
-    Returns:
-        dict: A dictionary containing the schema markup types and details.
-    """
-    try:
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        schemas = soup.find_all(attrs={"type": "application/ld+json"})
-
-        schema_data = []
-        for schema in schemas:
-            try:
-                schema_json = json.loads(schema.string)
-                schema_data.append(schema_json)
-            except Exception as e:
-                schema_data.append({"error": str(e)})
-
-        response = model.invoke("Analyze the following schema data:" + json.dump(schema_data))
-        return response
-    except Exception as e:
-        return {"error": str(e)}
-
 # Define tools
-tools = [retriever_tool, arxiv_tool, wikipedia, bing_search, analyze_schema_markup]
+tools = [retriever_tool, bing_search, arxiv_tool, wikipedia]
 
 
 
@@ -158,7 +106,7 @@ class AgentState(TypedDict):
 # Create the memory and model
 memory = MemorySaver()
 # model = ChatOpenAI(temperature=0, model="gpt-4-0125-preview", streaming=True)
-model = ChatOllama(temperature=0, model="llama3.2")
+model = ChatOllama(temperature=0.1, model="llama3.2")
 
 
 # Create the agent executor with the graph
@@ -166,23 +114,33 @@ from langgraph.prebuilt import create_react_agent
 
 # agent_executor = create_react_agent(model, tools, checkpointer=memory)
 
+from langchain_core.prompts import PromptTemplate
 # Define the custom prompt template
+# Import date class from datetime module
+from datetime import date
+
+# Returns the current local date
+today = date.today()
+
 template = '''
-You are an intelligent assistant designed to answer questions by effectively utilizing multiple tools. 
+You are an intelligent assistant designed to answer questions and write blog posts by effectively utilizing multiple tools. The current date is {today}.
 You have access to the following tools:
 1. Retriever Tool - Search and return information from the document corpus pertaining to creating high quality posts for SEO.
 2. Bing Web Search - Search the web for general information.
-3. Arxiv Tool - Query academic papers for research-based knowledge.
+3. Arxiv Tool - Search and query academic papers for research-based knowledge about AI.
 4. Wikipedia Tool - Retrieve information from Wikipedia.
 
 Guidelines for using tools:
 - Always consider combining multiple tools when a single tool might not provide a comprehensive answer.
 - If the first tool's output is incomplete or unclear, proceed to query additional tools to cross-verify or expand the information.
-- When answering complex questions, use a combination of tools to create a well-rounded response.
+- When answering complex questions, always use a combination of tools to create a well-rounded response.
 
 Your goal is to provide accurate, detailed, and well-supported answers by intelligently combining the outputs from multiple tools when necessary.
 
 '''
+
+# Create the PromptTemplate
+# prompt = PromptTemplate.from_template(template)
 
 # Initialize the agent with the custom prompt
 agent_executor = create_react_agent(
@@ -229,6 +187,7 @@ def process_chat():
                     for message in messages:
                         if hasattr(message, 'content'):
                             # Optional: You could choose to print tool outputs for debugging
+                            print(message)
                             print(chunk)
                             continue
                             
