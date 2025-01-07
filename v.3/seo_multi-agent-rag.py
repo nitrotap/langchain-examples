@@ -75,7 +75,7 @@ def bing_search(query: str):
     soup = BeautifulSoup(response.text, "html.parser")
     results = []
 
-    for item in soup.select(".b_algo"):
+    for item in soup.select(".b_algo, .b_imgcap_altitle"):
         title_tag = item.select_one("h2 a")
         snippet_tag = item.select_one(".b_caption p")
 
